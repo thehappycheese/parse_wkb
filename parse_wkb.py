@@ -7,13 +7,6 @@ from typing import NewType
 from typing import Tuple
 from typing import Union
 
-# This module was built using the "OpenGIS® Implementation Standard for Geographic information - Simple feature access - Part 1: Common architecture"
-# From 06-103r4_Implementation_Specification_for_Geographic_Information_-_Simple_feature_access_-_Part_1_Common_Architecture_v1.2.1.pdf
-# However it only supports the feature types that MYSQL supports (Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon, and GeometryCollection)
-# MYSQL doesnt even say it supports Z and M parts, but we support them here anyway.
-# POSTGIS has an extension called EWKB which is currently a superset of WKB, but their website warns that they don't care much about retaining this compatibility.
-# internally MYSQL prepends 4 bytes to the beginning of each fragment of WKB (each feature??) which represents the SRID. POSTGIS does something similar
-
 DimensionCount = int  # Literal[2, 3, 4]
 DimensionNames = str  # Literal["", "Z", "M", "ZM"]
 WKBDimensionSets: {int: (DimensionCount, DimensionNames)} = {
@@ -123,10 +116,6 @@ def parse_ByteOrder(wkb: bytearray) -> (ByteOrderChar, bytearray):
 
 
 def parse_GeometryType(wkb: bytearray, byte_order: ByteOrderChar) -> ((str, DimensionCount, DimensionNames, Callable), bytearray):
-	"""
-	returns type number (tens and units)
-	dimention set (divide by 1000)
-	"""
 	geom_type_integer, wkb = parse_UInt32(wkb, byte_order)
 	try:
 		type_name, parser = WKBGeometryTypeInfo[geom_type_integer % 1000]
@@ -159,24 +148,20 @@ WKBGeometryTypeInfo = {
 
 
 def parse_wkb(wkb: bytearray) -> []:
-	result = []
-	while wkb:
-		byte_order, wkb = parse_ByteOrder(wkb)
-		(type_name, dimension_count, dimension_names, parser), wkb = parse_GeometryType(wkb, byte_order)
-		geom, wkb = parser(wkb, byte_order, dimension_count)
-		result.append((' '.join((type_name, dimension_names)), geom))
-	return result
+	result, wkb = parse_Geometry(wkb, None, None)
+	return result, wkb
 
 
 def parse_MYSQL_internal_SRID(wkb: bytearray, byte_order: ByteOrderChar = "<") -> (UInt32, bytearray):
+	# TODO: according to the documentation, MySQL stores geometry always in little endian order. Therefore I assume that this is how they store the SRID. Test this is the case?
 	# reads in little endian "<" by default
 	return struct.unpack(byte_order[0] + " I", wkb[:4])[0], wkb[4:]
 
 
 def parse_MYSQL_internal(wkb: bytearray):
-	# TODO: according to the documentation, MySQL stores geometry always in little endian order. Therefore I assume that this is how they store the SRID
 	SRID, wkb = parse_MYSQL_internal_SRID(wkb)
-	return (("SRID=", SRID), parse_wkb(wkb))
+	result, wkb = parse_wkb(wkb)
+	return (("SRID=", SRID), result), wkb
 
 
 class WKBParseException(Exception):
