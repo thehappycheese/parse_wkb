@@ -1,6 +1,7 @@
 # Pure Python WKB Parser
 
-Parses WKB into python tuple representation:
+Parses WKB geometry from bytes into an arbitrary (WKT-ish) python tuple representation:
+
 ```python
 from parse_wkb import parse_wkb
 
@@ -12,7 +13,6 @@ assert PARSED == ('MultiPoint ', (('Point ', (10.0, 40.0)), ('Point ', (40.0, 30
 # Note the equivalent WKT would be: 
 WKT = 'MULTIPOINT(10 40,40 30,20 20,30 10)'
 ```
-
 
 
 ## Current Features
@@ -32,8 +32,9 @@ WKT = 'MULTIPOINT(10 40,40 30,20 20,30 10)'
   - {MultiPointZ}:  `('MultiPoint Z', ( ('Point Z', (x:float, y:float, z:float)), ('Point Z', (x:float, y:float, z:float)), ...) )`
   - etc.
 
+
 ## Specification
-This module is based on v1.2.1 of the **OpenGIS® Implementation Standard for Geographic information - Simple feature access - Part 1: Common architecture**
+This module is based on v1.2.1 of the **OpenGIS Implementation Standard for Geographic information - Simple feature access - Part 1: Common architecture**
 (which you can find here https://www.ogc.org/standards/sfa).
 
 The goal was to support the same subset of the spec that is currently supported by MySQL.
@@ -41,6 +42,7 @@ The goal was to support the same subset of the spec that is currently supported 
 Actually MYSQL doesnt even say it supports Z and M parts, but this module supports them anyway.
 
 POSTGIS has an extension called EWKB which is currently a superset of WKB, but their website warns that they don't care much about retaining this compatibility.
+
 
 ## Parse MySQL Binary Blob from Geometry Column (Internal representation)
  
@@ -68,6 +70,7 @@ assert parsed == ('MultiPoint ', (('Point ', (10.0, 40.0)), ('Point ', (40.0, 30
 
 Note that according to the documentation, MySQL stores geometry always in little endian order. Therefore I have assumed that the SRID is always stored this way also. I have not tested it since I discarded the SRID part.
 
+
 ## Alternate Approaches
 
 MySQL (and POSTGIS?) provide all the conversion functions you might need
@@ -83,8 +86,8 @@ or if you don't care for the 2GB+ of numpy and everything else that comes with a
 
 From making this script I learned that WKB is actually not a great spec...
  - it stores a lot of redundant information by repeating the byte order and geometry type for every point.
- - only 8 byte double precision floats are permitted... seems overkill for some applications. Would be better it we could specify precision, or even use integer types.
-I cant fathom the reason for this. It is no wonder there is an ecosystem of different formats out there. 
+ - Only 8 byte double precision floats are permitted... seems overkill for some applications. Would be better it we could specify precision, or even use integer types. 
+
 
 ## Planned Features?
 Conversions from
