@@ -8,7 +8,7 @@ from parse_wkb import parse_wkb
 WKB = b'\x01\x04\x00\x00\x00\x04\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x24\x40\x00\x00\x00\x00\x00\x00\x44\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x44\x40\x00\x00\x00\x00\x00\x00\x3e\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x34\x40\x00\x00\x00\x00\x00\x00\x34\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3e\x40\x00\x00\x00\x00\x00\x00\x24\x40'
 PARSED, any_remaining_bytes = parse_wkb(WKB)
 assert len(any_remaining_bytes)==0
-assert PARSED == ('MultiPoint ', (('Point ', (10.0, 40.0)), ('Point ', (40.0, 30.0)), ('Point ', (20.0, 20.0)), ('Point ', (30.0, 10.0))))
+assert PARSED == ('MULTIPOINT', 'XY', (('POINT', 'XY', (10.0, 40.0)), ('POINT', 'XY', (40.0, 30.0)), ('POINT', 'XY', (20.0, 20.0)), ('POINT', 'XY', (30.0, 10.0))))
 
 # Note the equivalent WKT would be: 
 WKT = 'MULTIPOINT(10 40,40 30,20 20,30 10)'
@@ -17,31 +17,41 @@ WKT = 'MULTIPOINT(10 40,40 30,20 20,30 10)'
 
 ## Current Features
 - A subset of WKB is supported:
-  - Supports `Point`, `LineString`, `Polygon`, `MultiPoint`, `MultiLineString`, `MultiPolygon`, and `GeometryCollection`
+  - Supports `POINT`, `LINESTRING`, `POLYGON`, `MULTIPOINT`, `MULTILINESTRING`, `MULTIPOLYGON`, and `GEOMETRYCOLLECTION`
   - Supports geometry with `XY`, `XYZ`, `XYM`, and `XYZM` dimensions
 - `parse_wkb()` returns python tuples like this:
-  - {Point}: `('Point ', (x:float, y:float))`
-  - {MultiPoint}: `('MultiPoint ', ({Point}, {Point}, ...))`
-  - {LineString}: `('LineString ', ({Point}, {Point}, ...))`
-  - {Polygon}: `('Polygon ', (({Point}, {Point}, {Point}, ...), ({Point}, {Point}, {Point}, ...), ...))`
-  - {MultiLineString}: `('MultiLineString ', ({Linestring}, {Linestring}, ...))`
-  - {MultiPolygon}: `('MultiPolygon ', ({Polygon}, {Polygon}, ...))`
-  - {GeometryCollection}: `('GeometryCollection ', ({Any}, {Any}, {Any}, ...))`
-- Geometry with other dimensions will have the extra dimension names appended to the string (like WKT):
-  - {PointZ}: `('Point Z', (x:float, y:float, z:float))`
-  - {MultiPointZ}:  `('MultiPoint Z', ( ('Point Z', (x:float, y:float, z:float)), ('Point Z', (x:float, y:float, z:float)), ...) )`
+  - {Point}: `('POINT', 'XY', (x:float, y:float))`
+  - {MultiPoint}: `('MULTIPOINT', 'XY', ({Point}, {Point}, ...))`
+  - {LineString}: `('LINESTRING', 'XY', ({Point}, {Point}, ...))`
+  - {Polygon}: `('POLYGON', 'XY', (({Point}, {Point}, {Point}, ...), ({Point}, {Point}, {Point}, ...), ...))`
+  - {MultiLineString}: `('MULTILINESTRING', 'XY', ({LineString}, {LineString}, ...))`
+  - {MultiPolygon}: `('MULTIPOLYGON', 'XY', ({Polygon}, {Polygon}, ...))`
+  - {GeometryCollection}: `('GEOMETRYCOLLECTION', 'XY', ({Any}, {Any}, {Any}, ...))`
+- Geometry with extra dimensions will be specified in the second element of the tuple as follows:
+  - {PointZ}: `('Point', 'XYZ', (x:float, y:float, z:float))`
+  - {PointM}: `('Point', 'XYM', (x:float, y:float, m:float))`
+  - {PointZM}: `('Point', 'XYZM', (x:float, y:float, z:float, m:float))`
+  - {MultiPointZ}:  `('MultiPoint', 'XYZ', ( ('Point', 'XYZ', (x:float, y:float, z:float)), ('Point', 'XYZ', (x:float, y:float, z:float)), ...) )`
   - etc.
-
 
 ## Specification
 This module is based on v1.2.1 of the **OpenGIS Implementation Standard for Geographic information - Simple feature access - Part 1: Common architecture**
-(which you can find here https://www.ogc.org/standards/sfa).
+(which can be found here https://www.ogc.org/standards/sfa).
 
+###MySQL
 The goal was to support the same subset of the spec that is currently supported by MySQL.
+Actually MYSQL doesn't even say it supports Z and M parts, but this module supports them anyway.
 
-Actually MYSQL doesnt even say it supports Z and M parts, but this module supports them anyway.
+The functions worked with the latest version (8.0.23) of the `mysql` docker image tested in Feb 2021.
 
+The internal storage format of MySQL is very similar to standard WKB with the exception that the first 4 bytes of the BLOB encode an SRID.
+
+###PostGIS
+I don't think this library will help with PostGIS.
 POSTGIS has an extension called EWKB which is currently a superset of WKB, but their website warns that they don't care much about retaining this compatibility.
+
+**SQLite / SpatiaLite**
+SQLite with the SpatiaLite extension also uses a variation of WKB but it is incompatible with this script as it departs substantially from standard WKB.
 
 
 ## Parse MySQL Binary Blob from Geometry Column (Internal representation)
@@ -60,12 +70,12 @@ MYSQL_GEOM_COLUMN = b'\x00\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00\x00\x01\x
 
 parsed, any_remaining_bytes = parse_MYSQL_internal(MYSQL_GEOM_COLUMN)
 assert len(any_remaining_bytes) == 0
-assert parsed == ( ('SRID=', 0), ('MultiPoint ', (('Point ', (10.0, 40.0)), ('Point ', (40.0, 30.0)), ('Point ', (20.0, 20.0)), ('Point ', (30.0, 10.0)))) )
+assert parsed == ( ('SRID=', 0), ('MULTIPOINT', 'XY', (('POINT', 'XY', (10.0, 40.0)), ('POINT', 'XY', (40.0, 30.0)), ('POINT', 'XY', (20.0, 20.0)), ('POINT', 'XY', (30.0, 10.0)))) )
 
 # or simply slice off 4 bytes before passing to the normal function:
 parsed, any_remaining_bytes = parse_wkb(MYSQL_GEOM_COLUMN[4:])
 assert len(any_remaining_bytes) == 0
-assert parsed == ('MultiPoint ', (('Point ', (10.0, 40.0)), ('Point ', (40.0, 30.0)), ('Point ', (20.0, 20.0)), ('Point ', (30.0, 10.0))))
+assert parsed == ('MULTIPOINT', 'XY', (('POINT', 'XY', (10.0, 40.0)), ('POINT', 'XY', (40.0, 30.0)), ('POINT', 'XY', (20.0, 20.0)), ('POINT', 'XY', (30.0, 10.0))))
 ```  
 
 Note that according to the documentation, MySQL stores geometry always in little endian order. Therefore I have assumed that the SRID is always stored this way also. I have not tested it since I discarded the SRID part.

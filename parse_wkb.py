@@ -1,3 +1,4 @@
+from __future__ import annotations
 import struct
 from typing import Any
 from typing import Callable
@@ -8,13 +9,7 @@ from typing import Tuple
 from typing import Union
 
 DimensionCount = int  # Literal[2, 3, 4]
-DimensionNames = str  # Literal["", "Z", "M", "ZM"]
-WKBDimensionSets: {int: (DimensionCount, DimensionNames)} = {
-	0: (2, ""),
-	1: (3, "Z"),
-	2: (3, "M"),
-	3: (4, "ZM")
-}
+DimensionNames = str  # Literal["XY", "XYZ", "XYM", "XYZM"]
 
 ByteOrderChar = str  # Literal[">", "<"]  # 0 = big = >, 1 = little = <
 
@@ -74,6 +69,7 @@ def parse_LineString(wkb: bytearray, byte_order: ByteOrderChar, dimension_count:
 
 
 def parse_Polygon(wkb: bytearray, byte_order: ByteOrderChar, dimension_count: DimensionCount) -> (Polygon, bytearray):
+	# TODO: The first and last point of a linear ring should be the same value. enforce?
 	num_rings, wkb = parse_UInt32(wkb, byte_order)
 	return multi_parse(wkb, byte_order, dimension_count, parse_LinearRing, num_rings)
 
@@ -96,12 +92,12 @@ def parse_MultiPolygon(wkb: bytearray, byte_order: ByteOrderChar, dimension_coun
 def parse_Geometry(wkb: bytearray, byte_order: ByteOrderChar, dimension_count: DimensionCount) -> (Geometry, bytearray):
 	# Apparently all features in a GeometryCollection can have their own byte-order and dimension set
 	byte_order, wkb = parse_ByteOrder(wkb)
-	(type_name, dimension_count, dimension_names, parser), wkb = parse_GeometryType(wkb, byte_order)
+	(type_name, dimension_count, extra_dimension_names, parser), wkb = parse_GeometryType(wkb, byte_order)
 	geom, wkb = parser(wkb, byte_order, dimension_count)
-	return (' '.join((type_name, dimension_names)), geom), wkb
+	return (type_name, extra_dimension_names, geom), wkb
 
 
-def parse_GeometryCollection(wkb: bytearray, byte_order: ByteOrderChar, dimension_count: DimensionCount) -> ([LineString], bytearray):
+def parse_GeometryCollection(wkb: bytearray, byte_order: ByteOrderChar, dimension_count: DimensionCount) -> ([Geometry], bytearray):
 	num_geometries, wkb = parse_UInt32(wkb, byte_order)
 	return multi_parse(wkb, byte_order, dimension_count, parse_Geometry, num_geometries)
 
@@ -115,36 +111,41 @@ def parse_ByteOrder(wkb: bytearray) -> (ByteOrderChar, bytearray):
 	raise WKBParseException(f"Invalid byte order {byte}")
 
 
+MapExtraDimensionNames: {int: (DimensionCount, DimensionNames)} = {
+	0: (2, "XY"),
+	1: (3, "XYZ"),
+	2: (3, "XYM"),
+	3: (4, "XYZM")
+}
+
+MapGeometryTypeNameAndParser = {
+	1:  ("POINT", parse_Point),
+	2:  ("LINESTRING", parse_LineString),
+	3:  ("POLYGON", parse_Polygon),
+	4:  ("MULTIPOINT", parse_MultiPoint),
+	5:  ("MULTILINESTRING", parse_MultiLineString),
+	6:  ("MULTIPOLYGON", parse_MultiPolygon),
+	7:  ("GEOMETRYCOLLECTION", parse_GeometryCollection),
+	15: ("POLYHEDRALSURFACE", None),
+	16: ("TIN", None),
+	17: ("TRIANGLE", None),
+}
+
+
 def parse_GeometryType(wkb: bytearray, byte_order: ByteOrderChar) -> ((str, DimensionCount, DimensionNames, Callable), bytearray):
 	geom_type_integer, wkb = parse_UInt32(wkb, byte_order)
-	try:
-		type_name, parser = WKBGeometryTypeInfo[geom_type_integer % 1000]
-	except:
+	type_name, parser = MapGeometryTypeNameAndParser.get(geom_type_integer % 1000, (None, None))
+	if type_name is None:
 		raise WKBParseException(f"WKB geometry type number {geom_type_integer} is not valid. {geom_type_integer % 1000} not in WKBGeometryTypeInfo.keys()")
 	
 	if parser is None:
 		raise WKBParseException(f"Parser is not implemented for {type_name}")
 	
-	try:
-		dimension_count, dimension_names = WKBDimensionSets[geom_type_integer // 1000]
-	except:
+	dimension_count, extra_dimension_names = MapExtraDimensionNames.get(geom_type_integer // 1000, (None, None))
+	if dimension_count is None:
 		raise WKBParseException(f"WKB geometry type number {geom_type_integer} is not valid. {geom_type_integer // 1000} not in WKBDimensionSets.keys()")
 	
-	return (type_name, dimension_count, dimension_names, parser), wkb
-
-
-WKBGeometryTypeInfo = {
-	1: ("Point", parse_Point),
-	2: ("LineString", parse_LineString),
-	3: ("Polygon", parse_Polygon),
-	4: ("MultiPoint", parse_MultiPoint),
-	5: ("MultiLineString", parse_MultiLineString),
-	6: ("MultiPolygon", parse_MultiPolygon),
-	7: ("GeometryCollection", parse_GeometryCollection),
-	15: ("PolyhedralSurface", None),
-	16: ("TIN", None),
-	17: ("Triangle", None),
-}
+	return (type_name, dimension_count, extra_dimension_names, parser), wkb
 
 
 def parse_wkb(wkb: bytearray) -> []:
