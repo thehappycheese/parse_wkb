@@ -1,11 +1,22 @@
 from parse_wkb import parse_wkb
 from wkb_to_geojson import wkb_to_GeoJSON
 from to_geojson import to_geojson_Geometry
-from shapely.geometry import Point, MultiPoint, LineString,MultiLineString, Polygon, MultiPolygon, LinearRing
+from wkb_to_wkt import wkb_to_wkt
+from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
+
+
+# shapely does not support multigeometries so we have to supply one we found online.
+multigeometry = b"\x01\x07\x00\x00\x00\x02\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10\x40\x00\x00\x00\x00\x00\x00\x18\x40\x01\x02\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10\x40\x00\x00\x00\x00\x00\x00\x18\x40\x00\x00\x00\x00\x00\x00\x1c\x40\x00\x00\x00\x00\x00\x00\x24\x40"
+
+
+def reference(typ, item):
+	print("\r\n========= REFERENCE -- " + typ + "==========")
+	print(item.wkt)
+	print(item.__geo_interface__)
 
 
 def test(typ, item):
-	print("\r\n========= " + typ + "==========")
+	print("\r\n========= ORIGINAL " + typ + "==========")
 	parsed = parse_wkb(item)[0]
 	print(parsed)
 	geojson = to_geojson_Geometry(parsed)
@@ -13,8 +24,14 @@ def test(typ, item):
 
 
 def test2(typ, item):
-	print("\r\n========= TEST 2 -- " + typ + "==========")
+	print("\r\n========= NEW PARSER GEOJSON -- " + typ + "==========")
 	parsed = wkb_to_GeoJSON(item)[0]
+	print(parsed)
+
+
+def test3(typ, item):
+	print("\r\n========= NEW PARSER WKT -- " + typ + "==========")
+	parsed = wkb_to_wkt(item)[0]
 	print(parsed)
 
 # test("POINT", b"\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3e\x40\x00\x00\x00\x00\x00\x00\x24\x40")
@@ -23,18 +40,33 @@ def test2(typ, item):
 
 # tests using shapely Geometry.wkb
 
+reference("POINT", Point(1, 2))
+reference("MULTIPOINT", MultiPoint([Point(1, 2), Point(1, 2)]))
+reference("LINESTRING", LineString([Point(1, 2), Point(1, 2)]))
+reference("MULTILINESTRING", MultiLineString([LineString([Point(1, 2), Point(1, 2)]), LineString([Point(1, 2), Point(1, 2)])]))
+reference("POLYGON", Polygon(LinearRing([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)]), [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]))
+reference("MULTIPOLYGON", MultiPolygon([Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]), Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])])]))
+
 test("POINT", Point(1, 2).wkb)
 test("MULTIPOINT", MultiPoint([Point(1, 2), Point(1, 2)]).wkb)
-
 test("LINESTRING", LineString([Point(1, 2), Point(1, 2)]).wkb)
 test("MULTILINESTRING", MultiLineString([LineString([Point(1, 2), Point(1, 2)]), LineString([Point(1, 2), Point(1, 2)])]).wkb)
-
 test("POLYGON", Polygon(LinearRing([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)]), [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]).wkb)
-test("MULTIPOLYGON", MultiPolygon([Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]),Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])])]).wkb)
+test("MULTIPOLYGON", MultiPolygon([Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]), Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])])]).wkb)
+test("MULTIGEOMETRY", multigeometry)
 
 test2("POINT", Point(1, 2).wkb)
 test2("MULTIPOINT", MultiPoint([Point(1, 2), Point(1, 2)]).wkb)
 test2("LINESTRING", LineString([Point(1, 2), Point(1, 2)]).wkb)
 test2("MULTILINESTRING", MultiLineString([LineString([Point(1, 2), Point(1, 2)]), LineString([Point(1, 2), Point(1, 2)])]).wkb)
 test2("POLYGON", Polygon(LinearRing([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)]), [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]).wkb)
-test2("MULTIPOLYGON", MultiPolygon([Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]),Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])])]).wkb)
+test2("MULTIPOLYGON", MultiPolygon([Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]), Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])])]).wkb)
+test2("MULTIGEOMETRY", multigeometry)
+
+test3("POINT", Point(1, 2).wkb)
+test3("MULTIPOINT", MultiPoint([Point(1, 2), Point(1, 2)]).wkb)
+test3("LINESTRING", LineString([Point(1, 2), Point(1, 2)]).wkb)
+test3("MULTILINESTRING", MultiLineString([LineString([Point(1, 2), Point(1, 2)]), LineString([Point(1, 2), Point(1, 2)])]).wkb)
+test3("POLYGON", Polygon(LinearRing([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)]), [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]).wkb)
+test3("MULTIPOLYGON", MultiPolygon([Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])]), Polygon([Point(0, 0), Point(0, 1), Point(1, 1), Point(1, 0), Point(0, 0)], [LinearRing([Point(0.1, 0.1), Point(0.1, 0.9), Point(0.9, 0.9), Point(0.9, 0.1), Point(0.1, 0.1)])])]).wkb)
+test3("MULTIGEOMETRY", multigeometry)

@@ -49,7 +49,7 @@ def parse_UInt32(wkb: bytearray, int_parser) -> (UInt32, bytearray):
 
 
 def parse_Point(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> (Point, bytearray):
-	return list(unpack(point_parser, wkb[:8 * dimension_count])), wkb[8 * dimension_count:]
+	return " ".join(map(str, unpack(point_parser, wkb[:8 * dimension_count]))), wkb[8 * dimension_count:]
 
 
 def parse_LinearRing(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> (LinearRing, bytearray):
@@ -59,34 +59,39 @@ def parse_LinearRing(wkb: bytearray, int_parser: str, point_parser: str, dimensi
 
 def parse_LineString(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> (LineString, bytearray):
 	num_points, wkb = parse_UInt32(wkb, int_parser)
-	return multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_Point, num_points)
+	points, wkb = multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_Point, num_points)
+	return ", ".join(points), wkb
 
 
 def parse_Polygon(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> (Polygon, bytearray):
 	# TODO: The first and last point of a linear ring should be the same value. enforce?
 	num_rings, wkb = parse_UInt32(wkb, int_parser)
-	return multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_LinearRing, num_rings)
+	rings, wkb = multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_LinearRing, num_rings)
+	return ', '.join(f"({', '.join(item)})" for item in rings), wkb
 
 
 def parse_MultiPoint(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> ([Point], bytearray):
 	num_points, wkb = parse_UInt32(wkb, int_parser)
 	points, wkb = multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_Geometry, num_points)
-	return points, wkb
+	return ", ".join(points), wkb
 
 
 def parse_MultiLineString(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> ([LineString], bytearray):
 	num_strings, wkb = parse_UInt32(wkb, int_parser)
-	return multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_Geometry, num_strings)
+	linestrings, wkb = multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_Geometry, num_strings)
+	return ", ".join(f"({item})" for item in linestrings), wkb
 
 
 def parse_MultiPolygon(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> ([Polygon], bytearray):
 	num_polygons, wkb = parse_UInt32(wkb, int_parser)
-	return multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_Geometry, num_polygons)
+	polygons, wkb = multi_parse(wkb, int_parser, point_parser, dimension_count, raw, parse_Geometry, num_polygons)
+	return ", ".join(f"({item})" for item in polygons), wkb
 
 
 def parse_GeometryCollection(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> ([Geometry], bytearray):
 	num_geometries, wkb = parse_UInt32(wkb, int_parser)
-	return multi_parse(wkb, int_parser, point_parser, dimension_count, False, parse_Geometry, num_geometries)
+	geoms, wkb = multi_parse(wkb, int_parser, point_parser, dimension_count, False, parse_Geometry, num_geometries)
+	return ", ".join(geoms), wkb
 
 
 def parse_Geometry(wkb: bytearray, int_parser: str, point_parser: str, dimension_count: DimensionCount, raw: bool) -> (Geometry, bytearray):
@@ -97,19 +102,19 @@ def parse_Geometry(wkb: bytearray, int_parser: str, point_parser: str, dimension
 	if dimension_count is None:
 		raise Exception(f"WKB geometry type number {geom_type_integer} is not valid. {geom_type_integer // 1000} not in WKBDimensionSets.keys()")
 	point_parser = byte_order + point_parser
-	type_name, rest_key_name, parser = MapGeometryTypeNameAndParser.get(geom_type_integer % 1000, (None, None))
+	type_name, parser = MapGeometryTypeNameAndParser.get(geom_type_integer % 1000, (None, None))
 	if type_name is None:
 		raise Exception(f"WKB geometry type number {geom_type_integer} is not valid. {geom_type_integer % 1000} not in WKBGeometryTypeInfo.keys()")
 	if parser is None:
 		raise Exception(f"Parser is not implemented for {type_name}")
 	geom, wkb = parser(wkb, int_parser, point_parser, dimension_count, True)
-	rest_props = "coordinates"
+	
 	if raw:
 		return geom, wkb
-	return {
-		"type":        type_name,
-		rest_key_name: geom
-	}, wkb
+	if not extra_dimension_names == "XY":
+		type_name += " " + extra_dimension_names[2:]
+	
+	return f"{type_name} ({geom})", wkb
 
 
 def parse_ByteOrder(wkb: bytearray) -> (ByteOrderChar, bytearray):
@@ -124,21 +129,21 @@ def parse_ByteOrder(wkb: bytearray) -> (ByteOrderChar, bytearray):
 MapExtraDimensionNames: {int: (DimensionCount, DimensionNames)} = {
 	0: (2, "XY", "2d"),
 	1: (3, "XYZ", "3d"),
-	# 2: (3, "XYM", "3d"),
-	# 3: (4, "XYZM", "4d")
+	2: (3, "XYM", "3d"),
+	3: (4, "XYZM", "4d")
 }
 
 MapGeometryTypeNameAndParser = {
-	1: ("Point", "coordinates", parse_Point),
-	2: ("LineString", "coordinates", parse_LineString),
-	3: ("Polygon", "coordinates", parse_Polygon),
-	4: ("MultiPoint", "coordinates", parse_MultiPoint),
-	5: ("MultiLineString", "coordinates", parse_MultiLineString),
-	6: ("MultiPolygon", "coordinates", parse_MultiPolygon),
-	7: ("Geometrycollection", "geometries", parse_GeometryCollection),
+	1: ("POINT", parse_Point),
+	2: ("LINESTRING", parse_LineString),
+	3: ("POLYGON", parse_Polygon),
+	4: ("MULTIPOINT", parse_MultiPoint),
+	5: ("MULTILINESTRING", parse_MultiLineString),
+	6: ("MULTIPOLYGON", parse_MultiPolygon),
+	7: ("GEOMETRYCOLLECTION", parse_GeometryCollection),
 }
 
 
-def wkb_to_GeoJSON(wkb: bytearray) -> []:
+def wkb_to_wkt(wkb: bytearray) -> []:
 	result, wkb = parse_Geometry(wkb, None, None, None, None)
 	return result, wkb
