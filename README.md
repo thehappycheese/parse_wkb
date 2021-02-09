@@ -3,11 +3,11 @@
 Parses WKB geometry from bytes into an arbitrary (WKT-ish) python tuple representation:
 
 ```python
-from parse_wkb import parse_wkb
+from wkb_to_abstract import parse_wkb
 
 WKB = b'\x01\x04\x00\x00\x00\x04\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x24\x40\x00\x00\x00\x00\x00\x00\x44\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x44\x40\x00\x00\x00\x00\x00\x00\x3e\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x34\x40\x00\x00\x00\x00\x00\x00\x34\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3e\x40\x00\x00\x00\x00\x00\x00\x24\x40'
 PARSED, any_remaining_bytes = parse_wkb(WKB)
-assert len(any_remaining_bytes)==0
+assert len(any_remaining_bytes) == 0
 assert PARSED == ('MULTIPOINT', 'XY', (('POINT', 'XY', (10.0, 40.0)), ('POINT', 'XY', (40.0, 30.0)), ('POINT', 'XY', (20.0, 20.0)), ('POINT', 'XY', (30.0, 10.0))))
 
 # Note the equivalent WKT would be: 
@@ -66,13 +66,13 @@ Also, refer to the database documentation to find out what the SRID means; the n
 In any case, if for some reason you have access to the geometry column as a binary blob, but you don't have access to the `ST_AsWKB()` command, the following may be helpful:
 
 ```python
-from parse_wkb import parse_MYSQL_internal, parse_wkb
+from wkb_to_abstract import parse_MYSQL_internal, parse_wkb
 
 MYSQL_GEOM_COLUMN = b'\x00\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x24\x40\x00\x00\x00\x00\x00\x00\x44\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x44\x40\x00\x00\x00\x00\x00\x00\x3e\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x34\x40\x00\x00\x00\x00\x00\x00\x34\x40\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3e\x40\x00\x00\x00\x00\x00\x00\x24\x40'
 
 parsed, any_remaining_bytes = parse_MYSQL_internal(MYSQL_GEOM_COLUMN)
 assert len(any_remaining_bytes) == 0
-assert parsed == ( ('SRID=', 0), ('MULTIPOINT', 'XY', (('POINT', 'XY', (10.0, 40.0)), ('POINT', 'XY', (40.0, 30.0)), ('POINT', 'XY', (20.0, 20.0)), ('POINT', 'XY', (30.0, 10.0)))) )
+assert parsed == (('SRID=', 0), ('MULTIPOINT', 'XY', (('POINT', 'XY', (10.0, 40.0)), ('POINT', 'XY', (40.0, 30.0)), ('POINT', 'XY', (20.0, 20.0)), ('POINT', 'XY', (30.0, 10.0)))))
 
 # or simply slice off 4 bytes before passing to the normal function:
 parsed, any_remaining_bytes = parse_wkb(MYSQL_GEOM_COLUMN[4:])

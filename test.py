@@ -1,6 +1,5 @@
-from parse_wkb import parse_wkb
+from wkb_to_abstract import wkb_to_abstract
 from wkb_to_geojson import wkb_to_GeoJSON
-from to_geojson import to_geojson_Geometry
 from wkb_to_wkt import wkb_to_wkt
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
 
@@ -16,11 +15,10 @@ def reference(typ, item):
 
 
 def test(typ, item):
-	print("\r\n========= ORIGINAL " + typ + "==========")
-	parsed = parse_wkb(item)[0]
+	print("\r\n========= ABSTRACT " + typ + "==========")
+	parsed = wkb_to_abstract(item)[0]
 	print(parsed)
-	geojson = to_geojson_Geometry(parsed)
-	print(geojson)
+	
 
 
 def test2(typ, item):
