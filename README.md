@@ -39,10 +39,12 @@ This module is based on v1.2.1 of the **OpenGIS Implementation Standard for Geog
 (which can be found here https://www.ogc.org/standards/sfa).
 
 ###MySQL
-The goal was to support the same subset of the spec that is currently supported by MySQL.
-Actually MYSQL doesn't even say it supports Z and M parts, but this module supports them anyway.
+The goal was to support the same subset of the spec that is currently supported by MySQL (v8.0.23 of the `mysql` docker image tested in Feb 2021).
+The function `parse_MYSQL_internal()` will parse the variant of WBK used by MySQL.
 
-The functions worked with the latest version (8.0.23) of the `mysql` docker image tested in Feb 2021.
+MYSQL doesn't say it supports Z and M parts, but this module supports them anyway.
+
+The functions worked with the latest version .
 
 The internal storage format of MySQL is very similar to standard WKB with the exception that the first 4 bytes of the BLOB encode an SRID.
 
@@ -50,7 +52,7 @@ The internal storage format of MySQL is very similar to standard WKB with the ex
 I don't think this library will help with PostGIS.
 POSTGIS has an extension called EWKB which is currently a superset of WKB, but their website warns that they don't care much about retaining this compatibility.
 
-**SQLite / SpatiaLite**
+###SQLite / SpatiaLite
 SQLite with the SpatiaLite extension also uses a variation of WKB but it is incompatible with this script as it departs substantially from standard WKB.
 
 
