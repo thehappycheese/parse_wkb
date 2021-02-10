@@ -135,10 +135,10 @@ MapGeometryTypeNameAndParser = {
 	4: ("MultiPoint", "coordinates", parse_MultiPoint),
 	5: ("MultiLineString", "coordinates", parse_MultiLineString),
 	6: ("MultiPolygon", "coordinates", parse_MultiPolygon),
-	7: ("Geometrycollection", "geometries", parse_GeometryCollection),
+	7: ("GeometryCollection", "geometries", parse_GeometryCollection),
 }
 
 
-def wkb_to_GeoJSON(wkb: bytearray) -> []:
+def wkb_to_geojson(wkb: bytearray) -> []:
 	result, wkb = parse_Geometry(wkb, None, None, None, None)
 	return result, wkb
