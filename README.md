@@ -5,30 +5,25 @@
 - `geojson_to_wkb()` converts GeoJSON into WKB
 - `wkb_to_abstract()` converts WKB into an abstract representation which closely resembles the binary format (for debugging purposes)
 
-The shapely library has been used for testing, but is not required by this library.
-
 ```python
-from wkb_to_geojson import wkb_to_geojson
-from wkb_to_wkt import wkb_to_wkt
-from geojson_to_wkb import geojson_to_wkb
-from wkb_to_abstract import wkb_to_abstract
-# or 
-# from parse_wkb import wkb_to_abstract, wkb_to_geojson, wkb_to_wkt
+from parse_wkb import (
+    wkb_to_abstract,
+    wkb_to_geojson,
+    wkb_to_wkt,
+    geojson_to_wkb
+)
 
 import json
 
 WKB = b"\x01\x04\x00\x00\x00\x04\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00$@\x00\x00\x00\x00\x00\x00D@\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00D@\x00\x00\x00\x00\x00\x00>@\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x004@\x00\x00\x00\x00\x00\x004@\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00>@\x00\x00\x00\x00\x00\x00$@"
 
-parsed_to_geojson, any_remaining_bytes = wkb_to_geojson(WKB)
-assert len(any_remaining_bytes) == 0
+parsed_to_geojson = wkb_to_geojson(WKB)
 assert json.dumps(parsed_to_geojson) == '{"type": "MultiPoint", "coordinates": [[10.0, 40.0], [40.0, 30.0], [20.0, 20.0], [30.0, 10.0]]}'
 
-parsed_to_wkt, any_remaining_bytes = wkb_to_wkt(WKB)
-assert len(any_remaining_bytes) == 0
+parsed_to_wkt = wkb_to_wkt(WKB)
 assert parsed_to_wkt == 'MULTIPOINT (10.0 40.0, 40.0 30.0, 20.0 20.0, 30.0 10.0)'
 
-parsed_to_abstract, any_remaining_bytes = wkb_to_abstract(WKB)
-assert len(any_remaining_bytes) == 0
+parsed_to_abstract = wkb_to_abstract(WKB)
 assert parsed_to_abstract == (
 	'LEnd',
 	('MultiPoint', 'XY'),
