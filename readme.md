@@ -1,5 +1,8 @@
 # Pure Python WKB (Well Known Binary) Converter
 
+[![Test and Publish PyPi](https://github.com/thehappycheese/parse_wkb/actions/workflows/publish_to_pypi.yml/badge.svg)](https://github.com/thehappycheese/parse_wkb/actions/workflows/publish_to_pypi.yml)
+[![PyPI - Version](https://img.shields.io/pypi/v/parse-wkb.svg)](https://pypi.org/project/parse-wkb)
+
 - `wkb_to_geojson()` converts WKB geometry into GeoJSON
 - `wkb_to_wkt()` converts WKB geometry into WKT
 - `geojson_to_wkb()` converts GeoJSON into WKB
